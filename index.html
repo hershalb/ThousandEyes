@@ -99,25 +99,46 @@ function makeMyMap(error, freeways, streets, neighborhoods, arteries) {
 		var muni = vis.selectAll("image")
 						.data(positions, function(d) { return d.id; });  // Update with new data
 
-  		muni.attr("fill", "red")
+		var muni = vis.selectAll("image")
+						.data(positions, function(d) { return d.id; });  // Update with new data
+
+  		muni.exit()
 			.transition(t)
-			.style("fill-opacity", 1e-6)
+			.attr("width", "0")
+  	        .attr("height", "0")
 			.remove();
 						
 		muni.transition(t)
+			.each("start", function() {  // Start animation
+              d3.select(this)  // 'this' means the current element
+                .attr("width", "15")
+  	        	.attr("height", "15")
+          	})
+          	.delay(function() {
+              	return 200;  // Dynamic delay (i.e. each item delays a little longer)
+          	})
 			.attr("x", function(d) {
 		    	return d.position[0];  // Circle's X
 			})
 			.attr("y", function(d) {
 		    	return d.position[1];  // Circle's Y
-			});
+			})
+			.each("end", function() {  // End animation
+              d3.select(this)  // 'this' means the current element
+                  .transition()
+                  .duration(500)
+                  .attr("width", "20")
+				  .attr("height", "20")
+          	});
 
 		muni.enter().append("image")
 			.attr("xlink:href", "./muni.png")
-			.attr("width", "20")
-  	        .attr("height", "20")
+			.attr("width", "0")
+  	        .attr("height", "0")
 			.style("fill-opacity", 1e-6)
 			.transition(t)
+			.attr("width", "20")
+  	        .attr("height", "20")
 			.style("fill-opacity", 1)
 			.attr("x", function(d) {
 		    	return d.position[0];  // Circle's X
