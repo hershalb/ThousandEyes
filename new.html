@@ -8,6 +8,7 @@
 <body>
 <script src="https://d3js.org/d3.v3.min.js"></script>
 <script src="http://d3js.org/queue.v1.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
 <script>
 
 /* JavaScript goes here. */
@@ -26,6 +27,8 @@ queue()
   .defer(d3.json, 'neighborhoods.json')
   .defer(d3.json, 'arteries.json')
   .await(makeMyMap);
+
+var agency = "sf-muni";
 
 function makeMyMap(error, freeways, streets, neighborhoods, arteries) {
     var center = d3.geo.centroid(freeways)
@@ -71,151 +74,116 @@ function makeMyMap(error, freeways, streets, neighborhoods, arteries) {
       .attr("d", path)
       .style("stroke-width", "1")
       .style("stroke", "black")
+
+    var positions = [projection([ -122.472008885617333, 37.727818531173412]), projection([ -122.422008885617333, 37.727818531173412]), projection([ -122.402008885617333, 37.727818531173412])];
+    // Create Circles
+    vis.selectAll("circle")
+        .data(positions)
+        .enter()
+        .append("circle")  // Add circle svg
+        .attr("cx", function(d) {
+            return d[0];  // Circle's X
+        })
+        .attr("cy", function(d) {  // Circle's Y
+            return d[1];
+        })
+        .attr("r", 10)  // radius
+        .attr('fill', 'red')
+        .on("click", function() {
+            positions = [projection([ -122.372008885617333, 37.727818531173412])]
+
+            // Update circles
+            vis.selectAll("circle")
+                .data(positions)  // Update with new data
+                .transition()  // Transition from old to new
+                .duration(1000)  // Length of animation
+                .each("start", function() {  // Start animation
+                    d3.select(this)  // 'this' means the current element
+                        .attr("fill", "red")  // Change color
+                        .attr("r", 5);  // Change size
+                })
+                .delay(function() {
+                    return 500;  // Dynamic delay (i.e. each item delays a little longer)
+                })
+                //.ease("linear")  // Transition easing - default 'variable' (i.e. has acceleration), also: 'circle', 'elastic', 'bounce', 'linear'
+                .attr("cx", function(d) {
+                    return d[0];  // Circle's X
+                })
+                .attr("cy", function(d) {
+                    return d[1];  // Circle's Y
+                })
+                .each("end", function() {  // End animation
+                    d3.select(this)  // 'this' means the current element
+                        .transition()
+                        .duration(500)
+                        .attr("fill", "orange")  // Change color
+                        .attr("r", 50);  // Change radius
+                });
+          });
+    // drawData(true);
+    // (function animate() {
+    //   console.log(positions.length);
+    //   console.log('updated');
+    //   d3.select("svg").selectAll("circle").remove();
+    //   console.log(positions.length);
+    //   next();
+    //   setTimeout(animate, 15000);
+    // }());
+
+    // function drawData(first) {
+    //   // d3.select("svg").selectAll("circle").remove();
+    //   $.get( "http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a="+ agency, function( data ) {
+    //     $(data).find("vehicle").each(function() {
+    //       var marker = $(this);
+    //       var point = projection([
+    //         marker.attr("lon"),
+    //         marker.attr("lat")
+    //       ]);
+    //       positions.push(point);
+    //       vis.append('svg:circle')
+    //           .attr('class', 'muni')
+    //           .attr('cx', point[0])
+    //           .attr('cy', point[1])
+    //           .attr('r', 5)
+    //           .attr('stroke', 'red')
+    //           .attr('fill', 'red');
+    //     });
+    //   });
+    // }
+
+    // function next() {
+    //   positions = [];
+    //   $.get( "http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a="+ agency, function( data ) {
+    //     $(data).find("vehicle").each(function() {
+    //       var marker = $(this);
+    //       var point = projection([
+    //         marker.attr("lon"),
+    //         marker.attr("lat")
+    //       ]);
+    //       positions.push(point);
+    //       // vis.append('svg:circle')
+    //       //     .attr('cx', point[0])
+    //       //     .attr('cy', point[1])
+    //       //     .attr('r', 5)
+    //       //     .attr('stroke', 'red')
+    //       //     .attr('fill', 'red');
+    //     });
+    //   });
+    //   var muni = vis.selectAll('muni').data(positions, function(d) { return d;});
+    //   muni.transition().duration(10).ease('linear')
+    //     .attr('cx', function(d) { console.log(d); return d[0]; })
+    //     .attr('cy', function(d) { return d[1]; });  
+    //   muni.enter().append('svg:circle')
+    //       .attr('class', 'muni')
+    //       .attr('r', 5)
+    //       .attr('cx', function(d) { return d[0]; })
+    //       .attr('cy', function(d) { return d[1]; })
+    //       .attr('stroke', 'red')
+    //       .attr('fill', 'red');
+    //   muni.exit().remove();
+    // }
 }
 
-// d3.json("freeways.json", function(json) {
-//     // create a first guess for the projection
-//     var center = d3.geo.centroid(json)
-//     var scale  = 150;
-//     var offset = [width/2, height/2];
-//     var projection = d3.geo.mercator().scale(scale).center(center)
-//         .translate(offset);
 
-//     // create the path
-//     var path = d3.geo.path().projection(projection);
-
-//     // using the path determine the bounds of the current map and use 
-//     // these to determine better values for the scale and translation
-//     var bounds  = path.bounds(json);
-//     var hscale  = scale*width  / (bounds[1][0] - bounds[0][0]);
-//     var vscale  = scale*height / (bounds[1][1] - bounds[0][1]);
-//     var scale   = (hscale < vscale) ? hscale : vscale;
-//     var offset  = [width - (bounds[0][0] + bounds[1][0])/2,
-//                       height - (bounds[0][1] + bounds[1][1])/2];
-
-//     // new projection
-//     projection = d3.geo.mercator().center(center)
-//       .scale(scale).translate(offset);
-//     path = path.projection(projection);
-
-//     // add a rectangle to see the bound of the svg
-//     vis.append("rect").attr('width', width).attr('height', height)
-//       .style('stroke', 'black').style('fill', 'none');
-
-//     vis.selectAll("path").data(json.features).enter().append("path")
-//       .attr("d", path)
-//       .style("fill", "red")
-//       .style("stroke-width", "1")
-//       .style("stroke", "black")
-//   });
-
-// d3.json("arteries.json", function(json) {
-//     // create a first guess for the projection
-//     var center = d3.geo.centroid(json)
-//     var scale  = 150;
-//     var offset = [width/2, height/2];
-//     var projection = d3.geo.mercator().scale(scale).center(center)
-//         .translate(offset);
-
-//     // create the path
-//     var path = d3.geo.path().projection(projection);
-
-//     // using the path determine the bounds of the current map and use 
-//     // these to determine better values for the scale and translation
-//     var bounds  = path.bounds(json);
-//     var hscale  = scale*width  / (bounds[1][0] - bounds[0][0]);
-//     var vscale  = scale*height / (bounds[1][1] - bounds[0][1]);
-//     var scale   = (hscale < vscale) ? hscale : vscale;
-//     var offset  = [width - (bounds[0][0] + bounds[1][0])/2,
-//                       height - (bounds[0][1] + bounds[1][1])/2];
-
-//     // new projection
-//     projection = d3.geo.mercator().center(center)
-//       .scale(scale).translate(offset);
-//     path = path.projection(projection);
-
-//     // add a rectangle to see the bound of the svg
-//     vis.append("rect").attr('width', width).attr('height', height)
-//       .style('stroke', 'black').style('fill', 'none');
-
-//     vis.selectAll("path").data(json.features).enter().append("path")
-//       .attr("d", path)
-//       .style("fill", "red")
-//       .style("stroke-width", "1")
-//       .style("stroke", "black")
-//   });
-
-// d3.json("streets.json", function(json) {
-//     // create a first guess for the projection
-//     var center = d3.geo.centroid(json)
-//     var scale  = 150;
-//     var offset = [width/2, height/2];
-//     var projection = d3.geo.mercator().scale(scale).center(center)
-//         .translate(offset);
-
-//     // create the path
-//     var path = d3.geo.path().projection(projection);
-
-//     // using the path determine the bounds of the current map and use 
-//     // these to determine better values for the scale and translation
-//     var bounds  = path.bounds(json);
-//     var hscale  = scale*width  / (bounds[1][0] - bounds[0][0]);
-//     var vscale  = scale*height / (bounds[1][1] - bounds[0][1]);
-//     var scale   = (hscale < vscale) ? hscale : vscale;
-//     var offset  = [width - (bounds[0][0] + bounds[1][0])/2,
-//                       height - (bounds[0][1] + bounds[1][1])/2];
-
-//     // new projection
-//     projection = d3.geo.mercator().center(center)
-//       .scale(scale).translate(offset);
-//     path = path.projection(projection);
-
-//     // add a rectangle to see the bound of the svg
-//     vis.append("rect").attr('width', width).attr('height', height)
-//       .style('stroke', 'black').style('fill', 'none');
-
-//     vis.selectAll("path").data(json.features).enter().append("path")
-//       .attr("d", path)
-//       .style("fill", "red")
-//       .style("stroke-width", "1")
-//       .style("stroke", "black")
-//   });
-
-d3.json("neighborhoods.json", function(error, json) {
-    // create a first guess for the projection
-    if (error) console.error(error);
-    var center = d3.geo.centroid(json)
-    var scale  = 150;
-    var offset = [width/2, height/2];
-    var projection = d3.geo.mercator().scale(scale).center(center)
-        .translate(offset);
-
-    // create the path
-    var path = d3.geo.path().projection(projection);
-
-    // using the path determine the bounds of the current map and use 
-    // these to determine better values for the scale and translation
-    var bounds  = path.bounds(json);
-    var hscale  = scale*width  / (bounds[1][0] - bounds[0][0]);
-    var vscale  = scale*height / (bounds[1][1] - bounds[0][1]);
-    var scale   = (hscale < vscale) ? hscale : vscale;
-    var offset  = [width - (bounds[0][0] + bounds[1][0])/2,
-                      height - (bounds[0][1] + bounds[1][1])/2];
-
-    // new projection
-    projection = d3.geo.mercator().center(center)
-      .scale(scale).translate(offset);
-    path = path.projection(projection);
-
-    // add a rectangle to see the bound of the svg
-    vis.append("rect").attr('width', width).attr('height', height)
-      .style('stroke', 'black').style('fill', 'none');
-
-    vis.selectAll("path").data(json.features).enter().append("path")
-      .attr("d", path)
-      .style("fill", "red")
-      .style("stroke-width", "1")
-      .style("stroke", "black")
-  });
 
 </script>
