@@ -75,113 +75,131 @@ function makeMyMap(error, freeways, streets, neighborhoods, arteries) {
       .style("stroke-width", "1")
       .style("stroke", "black")
 
-    var positions = [projection([ -122.472008885617333, 37.727818531173412]), projection([ -122.422008885617333, 37.727818531173412]), projection([ -122.402008885617333, 37.727818531173412])];
-    // Create Circles
-    vis.selectAll("circle")
-        .data(positions)
-        .enter()
-        .append("circle")  // Add circle svg
-        .attr("cx", function(d) {
-            return d[0];  // Circle's X
-        })
-        .attr("cy", function(d) {  // Circle's Y
-            return d[1];
-        })
-        .attr("r", 10)  // radius
-        .attr('fill', 'red')
-        .on("click", function() {
-            positions = [projection([ -122.372008885617333, 37.727818531173412])]
-
-            // Update circles
-            vis.selectAll("circle")
-                .data(positions)  // Update with new data
-                .transition()  // Transition from old to new
-                .duration(1000)  // Length of animation
-                .each("start", function() {  // Start animation
-                    d3.select(this)  // 'this' means the current element
-                        .attr("fill", "red")  // Change color
-                        .attr("r", 5);  // Change size
-                })
-                .delay(function() {
-                    return 500;  // Dynamic delay (i.e. each item delays a little longer)
-                })
-                //.ease("linear")  // Transition easing - default 'variable' (i.e. has acceleration), also: 'circle', 'elastic', 'bounce', 'linear'
-                .attr("cx", function(d) {
-                    return d[0];  // Circle's X
-                })
-                .attr("cy", function(d) {
-                    return d[1];  // Circle's Y
-                })
-                .each("end", function() {  // End animation
-                    d3.select(this)  // 'this' means the current element
-                        .transition()
-                        .duration(500)
-                        .attr("fill", "orange")  // Change color
-                        .attr("r", 50);  // Change radius
-                });
-          });
-    // drawData(true);
-    // (function animate() {
+    var positions = [];
+    
+    drawData(true);
+    (function animate() {
     //   console.log(positions.length);
     //   console.log('updated');
     //   d3.select("svg").selectAll("circle").remove();
     //   console.log(positions.length);
-    //   next();
-    //   setTimeout(animate, 15000);
-    // }());
+      next();
+      // drawData(false);
+      setTimeout(animate, 15000);
+    }());
 
-    // function drawData(first) {
-    //   // d3.select("svg").selectAll("circle").remove();
-    //   $.get( "http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a="+ agency, function( data ) {
-    //     $(data).find("vehicle").each(function() {
-    //       var marker = $(this);
-    //       var point = projection([
-    //         marker.attr("lon"),
-    //         marker.attr("lat")
-    //       ]);
-    //       positions.push(point);
-    //       vis.append('svg:circle')
-    //           .attr('class', 'muni')
-    //           .attr('cx', point[0])
-    //           .attr('cy', point[1])
-    //           .attr('r', 5)
-    //           .attr('stroke', 'red')
-    //           .attr('fill', 'red');
-    //     });
-    //   });
-    // }
+    function drawData(first) {
+      // d3.select("svg").selectAll("circle").remove();
+      $.get( "http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a="+ agency, function( data ) {
+        $(data).find("vehicle").each(function() {
+          var marker = $(this);
+          var point = projection([
+            marker.attr("lon"),
+            marker.attr("lat")
+          ]);
+          positions.push(point);
+          // vis.append('svg:circle')
+          //     .attr('class', 'muni')
+          //     .attr('cx', point[0])
+          //     .attr('cy', point[1])
+          //     .attr('r', 5)
+          //     .attr('stroke', 'red')
+          //     .attr('fill', 'red');
+        });
+        vis.selectAll("circle")
+          .data(positions)
+          .enter()
+          .append("circle")  // Add circle svg
+          .attr('class', 'muni')
+          .attr("cx", function(d) {
+              return d[0];  // Circle's X
+          })
+          .attr("cy", function(d) {  // Circle's Y
+              return d[1];
+          })
+          .attr("r", 10)  // radius
+          .attr('fill', 'red');
+      });
+    }
 
-    // function next() {
-    //   positions = [];
-    //   $.get( "http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a="+ agency, function( data ) {
-    //     $(data).find("vehicle").each(function() {
-    //       var marker = $(this);
-    //       var point = projection([
-    //         marker.attr("lon"),
-    //         marker.attr("lat")
-    //       ]);
-    //       positions.push(point);
-    //       // vis.append('svg:circle')
-    //       //     .attr('cx', point[0])
-    //       //     .attr('cy', point[1])
-    //       //     .attr('r', 5)
-    //       //     .attr('stroke', 'red')
-    //       //     .attr('fill', 'red');
-    //     });
-    //   });
-    //   var muni = vis.selectAll('muni').data(positions, function(d) { return d;});
-    //   muni.transition().duration(10).ease('linear')
-    //     .attr('cx', function(d) { console.log(d); return d[0]; })
-    //     .attr('cy', function(d) { return d[1]; });  
-    //   muni.enter().append('svg:circle')
-    //       .attr('class', 'muni')
-    //       .attr('r', 5)
-    //       .attr('cx', function(d) { return d[0]; })
-    //       .attr('cy', function(d) { return d[1]; })
-    //       .attr('stroke', 'red')
-    //       .attr('fill', 'red');
-    //   muni.exit().remove();
-    // }
+    function next() {
+      var len = positions.length;
+      var count = 0;
+      positions = [];
+      $.get( "http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a="+ agency, function( data ) {
+        console.log(data);
+        $(data).find("vehicle").each(function() {
+          if (count >= len) {
+            return false;
+          }
+          var marker = $(this);
+          var point = projection([
+            marker.attr("lon"),
+            marker.attr("lat")
+          ]);
+          positions.push(point);
+          // vis.append('svg:circle')
+          //     .attr('cx', point[0])
+          //     .attr('cy', point[1])
+          //     .attr('r', 5)
+          //     .attr('stroke', 'red')
+          //     .attr('fill', 'red');
+          count += 1;
+        });
+        console.log(positions.length);
+        // Update circles
+        vis.selectAll("circle")
+          .data(positions)  // Update with new data
+          .transition()  // Transition from old to new
+          .duration(1000)  // Length of animation
+          .each("start", function() {  // Start animation
+              d3.select(this)  // 'this' means the current element
+                  .attr("fill", "red")  // Change color
+                  .attr("r", 5);  // Change size
+          })
+          .delay(function() {
+              return 500;  // Dynamic delay (i.e. each item delays a little longer)
+          })
+          //.ease("linear")  // Transition easing - default 'variable' (i.e. has acceleration), also: 'circle', 'elastic', 'bounce', 'linear'
+          .attr("cx", function(d) {
+              return d[0];  // Circle's X
+          })
+          .attr("cy", function(d) {
+              return d[1];  // Circle's Y
+          })
+          .each("end", function() {  // End animation
+              d3.select(this)  // 'this' means the current element
+                  .transition()
+                  .duration(500)
+                  .attr("fill", "orange")  // Change color
+                  .attr("r", 50);  // Change radius
+          });
+      });
+    }
+}
+
+function check(first, array) {
+    // if the other array is a falsy value, return
+    if (!array)
+        return false;
+
+    // compare lengths - can save a lot of time 
+    if (first.length != array.length)
+        return false;
+
+    for (var i = 0, l=first.length; i < l; i++) {
+        // Check if we have nested arrays
+        if (first[i] instanceof Array && array[i] instanceof Array) {
+            // recurse into the nested arrays
+            if (!first[i].equals(array[i]))
+                return false;       
+        }           
+        else if (first[i] != array[i]) { 
+            // Warning - two different object instances will never be equal: {x:20} != {x:20}
+            return false;   
+        }           
+    }       
+    return true;
 }
 
 
