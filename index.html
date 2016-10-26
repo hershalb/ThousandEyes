@@ -2,21 +2,101 @@
 <meta charset="utf-8">
 <style>
 
+.container {
+	display: inline-block;
+}
+
 /* CSS goes here. */
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  font-family: Arial, sans-serif;
+  color: #fff;
+  border-radius: 2px;
+  pointer-events: none;
+  font-size: 10px;
+  text-align: center;
+  z-index: 99;
+}
+
+.d3-tip.pick2.out {
+  transition(opacity 0s 100ms);
+}
+
+.d3-tip.text-center {
+  text-align: center;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing(border-box);
+  text-align: left;
+  display: inline;
+  font-size: 15px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Northward tooltips */
+.d3-tip.n:after {
+  content: "\25BC";
+  margin: -3px 0 0 0;
+  top: 100%;
+  left: 0;
+  text-align: center;
+}
 
 </style>
-<body>
-<script src="https://d3js.org/d3.v3.min.js"></script>
+<!-- <script src="https://d3js.org/d3.v3.min.js"></script> -->
+<link href="./bower_components/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="./bower_components/bootstrap/dist/css/bootstrap-theme.min.css" rel="stylesheet">
 <script src="http://d3js.org/queue.v1.min.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<script type="text/javascript" src="../bower_components/d3/d3.min.js"></script>
+<script type="text/javascript" src="../bower_components/d3-tip/index.js"></script>
+<body>
+<div class="container-fluid">
+	<div id="map" class="col-sm-8">
+	</div>
+	<div class="col-sm-4 pull-right">
+		<div style="border:1px solid black; height: 40vh; margin-bottom: 30px;">
+			<h1>
+				Click the Vehicle for more Info!
+			</h1>
+			<h1 id="info"></h1>
+		</div>
+		<div style="border:1px solid black; height: 40vh;">
+			<h1>
+				Choose specific routes.
+			</h1>
+			<select id="routes" onchange="detectChange()">
+			  <option value="">All</option>
+			  <option value="N">N</option>
+			  <option value="6">6</option>
+			</select>
+			<h1 id="refresh"></h1>
+		</div>
+		<h1>Time to refresh: <span id="timeRemaining"></span></h1>
+		<button id="toggleButton" class="btn-lg btn-danger" onclick="toggle()">Stop</button>
+	</div>
+</div>
 <script>
 
 /* JavaScript goes here. */
 
-var width  = 1500;
+var width  = 1450;
 var height = 1500;
+var timeLeft = 15;
+var stopped = false;
+var routes = '';
 
-var vis = d3.select( "body" )
+// begin map.
+var vis = d3.select( "#map" )
   .append( "svg" )
   .attr( "width", width )
   .attr( "height", height );
@@ -30,6 +110,15 @@ queue()
 
 var agency = "sf-muni";
 
+// changes the stop button
+// that the user uses for timer.
+function toggle() {
+	stopped = !stopped;
+	var words = stopped ? "Restart" : "Stop";
+	document.getElementById("toggleButton").className = stopped ? "btn-lg btn-info" : "btn-lg btn-danger";
+	document.getElementById("toggleButton").innerHTML = words;
+}
+
 function makeMyMap(error, freeways, streets, neighborhoods, arteries) {
     var center = d3.geo.centroid(freeways)
     var scale  = 150;
@@ -42,19 +131,19 @@ function makeMyMap(error, freeways, streets, neighborhoods, arteries) {
 
     // using the path determine the bounds of the current map and use 
     // these to determine better values for the scale and translation
-    var bounds  = path.bounds(freeways);
+    var bounds  = path.bounds(streets);
     var hscale  = scale*width  / (bounds[1][0] - bounds[0][0]);
     var vscale  = scale*height / (bounds[1][1] - bounds[0][1]);
     var scale   = (hscale < vscale) ? hscale : vscale;
-    var offset  = [width - (bounds[0][0] + bounds[1][0])/2,
-                      height - (bounds[0][1] + bounds[1][1])/2];
+    var offset  = [width - (bounds[0][0] + bounds[1][0])/2.6,
+                      height - (bounds[0][1] + bounds[1][1])/2.25];
 
     // new projection
     projection = d3.geo.mercator().center(center)
       .scale(scale).translate(offset);
     path = path.projection(projection);
 
-    // add a rectangle to see the bound of the svg
+    // add the geoJSON data to the project.
     vis.append("rect").attr('width', width).attr('height', height)
       .style('stroke', 'black').style('fill', 'none');
 
@@ -74,40 +163,68 @@ function makeMyMap(error, freeways, streets, neighborhoods, arteries) {
       .attr("d", path)
       .style("stroke-width", "1")
       .style("stroke", "black");
+
+    // allows user to hover over vehicles.
+	var tip = d3.tip()
+	  .attr('class', 'd3-tip')
+	  .offset([-10, 0])
+	  .html(function(d) { return "<h2>Vehicle #</h2> <h2 style='color:red'>" + d.id + "</h2>";; });
+	vis.call(tip);
     
-    (function animate() {
+    (function newRoute() {
       var positions = [];
-      $.get( "http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a="+ agency, function( data ) {
+      // reset the data.
+      $.get( "http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a="+ agency + "&r=" + routes, 
+      	function( data ) {
+      	// console.log(data);
+      	// call API and add information for each vehicle.
         $(data).find("vehicle").each(function() {
           var marker = $(this);
           var point = projection([
             marker.attr("lon"),
             marker.attr("lat")
           ]);
-          positions.push({position: point, id: marker.attr("id")});
+          positions.push({realPos: [marker.attr("lon"), marker.attr("lat")], 
+          				position: point, id: marker.attr("id"), 
+          				speed: Math.round(marker.attr("speedKmHr") * 0.621371)});
         });
-        console.log(positions.length);
+        // console.log(positions.length);
+        // call the next function on the new dataset.
         next(positions);
       });
-      setTimeout(animate, 15000);
+      // reset the time left.
+      timeLeft = 15;
+      // make sure that the user is updated.
+      document.getElementById("refresh").innerHTML = "";
+      setTimeout(newRoute, 15000);
     }());
+
+    // this function returns the remaining time left
+    // until the next API call.
+    (function timeRemaining() {
+    	// checks if you stopped it or not.
+	    document.getElementById("timeRemaining").innerHTML = stopped ? '' : timeLeft;
+    	timeLeft -= 1;
+    	setTimeout(timeRemaining, 1000);
+	}());
 
     function next(positions) {
 		var t = d3.transition()
 				.duration(1000);
-		// Update circles
+		// Update images
 		var muni = vis.selectAll("image")
 						.data(positions, function(d) { return d.id; });  // Update with new data
 
-		var muni = vis.selectAll("image")
-						.data(positions, function(d) { return d.id; });  // Update with new data
-
+		// The muni to be removed
+		// will receive this "treatment".
   		muni.exit()
 			.transition(t)
 			.attr("width", "0")
   	        .attr("height", "0")
 			.remove();
-						
+				
+		// The muni from the last call
+		// will receive this "treatment".		
 		muni.transition(t)
 			.each("start", function() {  // Start animation
               d3.select(this)  // 'this' means the current element
@@ -131,25 +248,42 @@ function makeMyMap(error, freeways, streets, neighborhoods, arteries) {
 				  .attr("height", "20")
           	});
 
+		// The muni not in last call
+		// will receive this "treatment".
 		muni.enter().append("image")
 			.attr("xlink:href", "./muni.png")
 			.attr("width", "0")
   	        .attr("height", "0")
 			.style("fill-opacity", 1e-6)
+			.on('mouseover', tip.show)
+			.on('mouseout', tip.hide)
+			.on('mousedown', function(d) {
+				document.getElementById("info").innerHTML = 
+				"Vehicle " + d.id + " is at lon: " + d.realPos[0] + " and lat: " +
+				d.realPos[1] + " heading towards its next stop at " + d.speed + " miles per hour.";
+				return;
+			})
 			.transition(t)
 			.attr("width", "20")
   	        .attr("height", "20")
 			.style("fill-opacity", 1)
 			.attr("x", function(d) {
-		    	return d.position[0];  // Circle's X
+		    	return d.position[0];  // Image's X
 			})
 			.attr("y", function(d) {
-		    	return d.position[1];  // Circle's Y
+		    	return d.position[1];  // Image's Y
 			});
-
-    }
+	}
 }
 
+// Used to change part of the API call
+// and let user know that the image will Update.
+function detectChange() {
+    routes = document.getElementById("routes").value;
+    document.getElementById("refresh").innerHTML = "Will update on next refresh";
+};
 
 
 </script>
+</body>
+</html>
